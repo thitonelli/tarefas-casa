@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tarefas</title>
+<style>
+  :root {
+    --green: #1D9E75; --green-light: #E1F5EE; --green-dark: #0F6E56;
+    --blue: #378ADD; --blue-light: #E6F1FB; --blue-dark: #185FA5;
+    --orange: #EF9F27; --orange-light: #FAEEDA; --orange-dark: #854F0B;
+    --purple: #7F77DD; --purple-light: #EEEDFE; --purple-dark: #3C3489;
+    --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+    --pink-light: #FBEAF0; --pink-dark: #993556;
+    --bg: #F5F7FA; --card: #FFFFFF;
+    --border: #E2E6EC; --text: #1A1D23; --muted: #6B7280; --faint: #9CA3AF;
+    --radius: 14px; --radius-sm: 9px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); min-height: 100vh; }
+  .phone { max-width: 430px; margin: 0 auto; background: var(--card);
+           min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+
+  /* Header */
+  .header { padding: 1rem 1.25rem 0.75rem; background: var(--card);
+            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+  .app-title { font-size: 20px; font-weight: 600; }
+  .add-btn { background: var(--green); color: white; border: none;
+             border-radius: var(--radius-sm); padding: 7px 16px; font-size: 14px;
+             font-weight: 500; cursor: pointer; }
+  .tabs { display: flex; gap: 5px; }
+  .tab { flex: 1; padding: 8px 4px; font-size: 12px; text-align: center;
+         border-radius: var(--radius-sm); border: 1px solid var(--border);
+         background: transparent; cursor: pointer; color: var(--muted); font-weight: 400; }
+  .tab.active { background: var(--green-light); color: var(--green-dark);
+                border-color: var(--green); font-weight: 600; }
+
+  /* Content */
+  .content { flex: 1; padding: 1rem; overflow-y: auto; }
+  .section-label { font-size: 11px; font-weight: 600; color: var(--faint);
+                   text-transform: uppercase; letter-spacing: .06em; margin: .75rem 0 .4rem; }
+
+  /* Progress */
+  .progress-wrap { margin-bottom: 1rem; }
+  .progress-text { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .progress-bar { background: #EAECF0; border-radius: 20px; height: 7px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 20px; transition: width .4s; }
+
+  /* Task Card */
+  .task-card { background: var(--card); border: 1px solid var(--border);
+               border-radius: var(--radius); padding: .8rem 1rem; margin-bottom: 8px;
+               display: flex; align-items: flex-start; gap: 10px; transition: background .15s; }
+  .task-card.done { opacity: .5; }
+  .task-card.overdue { border-left: 3px solid var(--red); }
+  .check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+           margin-top: 1px; cursor: pointer; transition: all .15s; }
+  .check.on { background: var(--green); border-color: var(--green); }
+  .check.on::after { content: '✓'; color: white; font-size: 12px; font-weight: 700; }
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .task-card.done .task-name { text-decoration: line-through; color: var(--faint); }
+  .task-meta { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .b-diaria   { background: var(--green-light); color: var(--green-dark); }
+  .b-semanal  { background: var(--blue-light);  color: var(--blue-dark); }
+  .b-data     { background: var(--purple-light); color: var(--purple-dark); }
+  .b-esporad  { background: var(--orange-light); color: var(--orange-dark); }
+  .b-hora     { background: var(--pink-light);  color: var(--pink-dark); }
+  .b-prazo    { background: var(--red-light);   color: var(--red-dark); }
+  .del-btn { background: none; border: none; color: var(--faint); cursor: pointer;
+             font-size: 18px; padding: 2px 5px; border-radius: 6px; flex-shrink: 0; line-height: 1; }
+  .del-btn:hover { color: var(--red); background: var(--red-light); }
+  .empty { text-align: center; color: var(--faint); font-size: 14px; padding: 2.5rem 0; }
+
+  /* Loading */
+  .loading { text-align: center; color: var(--faint); font-size: 13px; padding: 1.5rem 0; }
+
+  /* Modal */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.5);
+              display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+  .modal-bg.hidden { display: none; }
+  .modal { background: var(--card); border-radius: var(--radius) var(--radius) 0 0;
+           padding: 1.5rem; width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 17px; font-weight: 600; margin-bottom: 1.1rem; }
+  .field { margin-bottom: .9rem; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+  .field input, .field select { width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 14px; background: var(--card); color: var(--text); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .freq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 5px; }
+  .fopt { padding: 9px; font-size: 13px; text-align: center; border: 1px solid var(--border);
+          border-radius: var(--radius-sm); cursor: pointer; color: var(--muted); background: transparent; }
+  .fopt.sel { background: var(--green-light); color: var(--green-dark);
+              border-color: var(--green); font-weight: 600; }
+  .dias-row { display: flex; gap: 7px; margin-top: 6px; flex-wrap: wrap; }
+  .dia { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+         font-size: 11px; cursor: pointer; background: transparent; color: var(--muted);
+         display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .dia.sel { background: var(--blue-light); color: var(--blue-dark); border-color: var(--blue); }
+  .save-btn { width: 100%; padding: 12px; background: var(--green); color: white;
+              border: none; border-radius: var(--radius-sm); font-size: 15px;
+              font-weight: 600; cursor: pointer; margin-top: 6px; }
+  .cancel-btn { width: 100%; padding: 11px; background: transparent; color: var(--muted);
+                border: 1px solid var(--border); border-radius: var(--radius-sm);
+                font-size: 14px; cursor: pointer; margin-top: 8px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+           background: #1A1D23; color: white; padding: 10px 20px; border-radius: 20px;
+           font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">📋 Tarefas da Ana</div>
+      <button class="add-btn" onclick="abrirModal()">+ Nova</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="hoje" onclick="setTab('hoje',this)">Hoje</button>
+      <button class="tab" data-tab="semana" onclick="setTab('semana',this)">Semana</button>
+      <button class="tab" data-tab="datas" onclick="setTab('datas',this)">Datas</button>
+      <button class="tab" data-tab="todas" onclick="setTab('todas',this)">Todas</button>
+    </div>
+  </div>
+  <div class="content" id="content">
+    <div class="loading">Carregando tarefas...</div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg hidden" id="modal-bg">
+  <div class="modal">
+    <div class="modal-title" id="modal-titulo">Nova Tarefa</div>
+    <input type="hidden" id="edit-id">
+
+    <div class="field">
+      <label>Nome da tarefa *</label>
+      <input id="f-nome" type="text" placeholder="Ex: Lavar a louça">
+    </div>
+
+    <div class="field">
+      <label>Frequência *</label>
+      <div class="freq-grid">
+        <div class="fopt sel" data-freq="DIARIA"        onclick="selFreq('DIARIA')">📅 Diária</div>
+        <div class="fopt"     data-freq="SEMANAL"       onclick="selFreq('SEMANAL')">🗓 Semanal</div>
+        <div class="fopt"     data-freq="DATA_ESPECIFICA" onclick="selFreq('DATA_ESPECIFICA')">📌 Data</div>
+        <div class="fopt"     data-freq="ESPORADICA"    onclick="selFreq('ESPORADICA')">⚡ Esporádica</div>
+      </div>
+    </div>
+
+    <div class="field" id="wrap-dias" style="display:none">
+      <label>Dias da semana</label>
+      <div class="dias-row" id="dias-row">
+        <div class="dia" data-d="0" onclick="togDia(0)">D</div>
+        <div class="dia" data-d="1" onclick="togDia(1)">S</div>
+        <div class="dia" data-d="2" onclick="togDia(2)">T</div>
+        <div class="dia" data-d="3" onclick="togDia(3)">Q</div>
+        <div class="dia" data-d="4" onclick="togDia(4)">Q</div>
+        <div class="dia" data-d="5" onclick="togDia(5)">S</div>
+        <div class="dia" data-d="6" onclick="togDia(6)">S</div>
+      </div>
+    </div>
+
+    <div class="field" id="wrap-data" style="display:none">
+      <label>Data específica *</label>
+      <input id="f-data" type="date">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Horário (opcional)</label>
+        <input id="f-hora" type="time">
+      </div>
+      <div class="field">
+        <label>Prazo (até)</label>
+        <input id="f-prazo" type="time">
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="salvar()">Salvar Tarefa</button>
+    <button class="cancel-btn" onclick="fecharModal()">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/tarefas';
+let tabAtual = 'hoje';
+let freqSel = 'DIARIA';
+let diasSel = [];
+
+// ─── API ───────────────────────────────────────────────
+async function req(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.erro || 'Erro na requisição');
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ─── Render ────────────────────────────────────────────
+function setTab(t, el) {
+  tabAtual = t;
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  carregar();
+}
+
+async function carregar() {
+  const c = document.getElementById('content');
+  c.innerHTML = '<div class="loading">Carregando...</div>';
+  try {
+    let tarefas;
+    if (tabAtual === 'hoje')   tarefas = await req('GET', `${API}/hoje`);
+    else if (tabAtual === 'semana') tarefas = await req('GET', `${API}/semanais`);
+    else if (tabAtual === 'datas')  tarefas = await req('GET', `${API}/datas`);
+    else                       tarefas = await req('GET', API);
+    renderTarefas(tarefas);
+  } catch (e) {
+    c.innerHTML = `<div class="empty">Erro ao carregar tarefas.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function renderTarefas(tarefas) {
+  const c = document.getElementById('content');
+  let html = '';
+
+  if (tabAtual === 'hoje') {
+    const total = tarefas.length;
+    const feitas = tarefas.filter(t => t.concluida).length;
+    const pct = total ? Math.round(feitas / total * 100) : 0;
+    html += `<div class="progress-wrap">
+      <div class="progress-text">${feitas} de ${total} tarefas feitas hoje</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }
+
+  if (tabAtual === 'datas') {
+    const hoje = new Date().toISOString().slice(0,10);
+    const proximas = tarefas.filter(t => t.dataEspecifica >= hoje);
+    const passadas  = tarefas.filter(t => t.dataEspecifica < hoje);
+    if (proximas.length) {
+      html += '<div class="section-label">Próximas</div>';
+      html += proximas.map(cardHTML).join('');
+    }
+    if (passadas.length) {
+      html += '<div class="section-label">Passadas</div>';
+      html += passadas.map(cardHTML).join('');
+    }
+    if (!tarefas.length) html += '<div class="empty">Nenhuma tarefa com data específica</div>';
+  } else {
+    if (!tarefas.length) html += '<div class="empty">Nenhuma tarefa aqui 🎉</div>';
+    else html += tarefas.map(cardHTML).join('');
+  }
+
+  c.innerHTML = html;
+}
+
+function cardHTML(t) {
+  const freq = freqBadge(t);
+  const hoje = new Date().toISOString().slice(0,10);
+  const vencida = t.prazo && !t.concluida && tempoPassou(t.prazo);
+  return `<div class="task-card ${t.concluida?'done':''} ${vencida?'overdue':''}">
+    <div class="check ${t.concluida?'on':''}" onclick="concluir(${t.id})"></div>
+    <div class="task-info">
+      <div class="task-name">${esc(t.nome)}</div>
+      <div class="task-meta">
+        ${freq}
+        ${t.horario ? `<span class="badge b-hora">⏰ ${t.horario.slice(0,5)}</span>` : ''}
+        ${t.prazo   ? `<span class="badge b-prazo">⚠ até ${t.prazo.slice(0,5)}</span>` : ''}
+      </div>
+    </div>
+    <button class="del-btn" onclick="deletar(${t.id})">✕</button>
+  </div>`;
+}
+
+function freqBadge(t) {
+  if (t.frequencia === 'DIARIA')         return '<span class="badge b-diaria">diária</span>';
+  if (t.frequencia === 'SEMANAL')        return '<span class="badge b-semanal">semanal</span>';
+  if (t.frequencia === 'ESPORADICA')     return '<span class="badge b-esporad">esporádica</span>';
+  if (t.frequencia === 'DATA_ESPECIFICA') {
+    const d = t.dataEspecifica ? fmtData(t.dataEspecifica) : '';
+    return `<span class="badge b-data">📌 ${d}</span>`;
+  }
+  return '';
+}
+
+function fmtData(s) {
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function tempoPassou(hora) {
+  const agora = new Date();
+  const [h, m] = hora.split(':').map(Number);
+  return agora.getHours() > h || (agora.getHours() === h && agora.getMinutes() > m);
+}
+function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Ações ─────────────────────────────────────────────
+async function concluir(id) {
+  try {
+    await req('PATCH', `${API}/${id}/concluir`);
+    carregar();
+  } catch(e) { toast(e.message); }
+}
+
+async function deletar(id) {
+  if (!confirm('Deletar esta tarefa?')) return;
+  try {
+    await req('DELETE', `${API}/${id}`);
+    toast('Tarefa removida');
+    carregar();
+  } catch(e) { toast(e.message); }
+}
+
+// ─── Modal ─────────────────────────────────────────────
+function abrirModal() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('modal-titulo').textContent = 'Nova Tarefa';
+  document.getElementById('f-nome').value = '';
+  document.getElementById('f-hora').value = '';
+  document.getElementById('f-prazo').value = '';
+  document.getElementById('f-data').value = '';
+  selFreq('DIARIA');
+  diasSel = [];
+  document.querySelectorAll('.dia').forEach(d => d.classList.remove('sel'));
+  document.getElementById('modal-bg').classList.remove('hidden');
+}
+function fecharModal() { document.getElementById('modal-bg').classList.add('hidden'); }
+
+function selFreq(f) {
+  freqSel = f;
+  document.querySelectorAll('.fopt').forEach(el => {
+    el.classList.toggle('sel', el.dataset.freq === f);
+  });
+  document.getElementById('wrap-dias').style.display = f === 'SEMANAL' ? 'block' : 'none';
+  document.getElementById('wrap-data').style.display = f === 'DATA_ESPECIFICA' ? 'block' : 'none';
+}
+
+function togDia(d) {
+  const idx = diasSel.indexOf(d);
+  if (idx >= 0) diasSel.splice(idx, 1); else diasSel.push(d);
+  document.querySelectorAll('.dia').forEach(el => {
+    el.classList.toggle('sel', diasSel.includes(parseInt(el.dataset.d)));
+  });
+}
+
+async function salvar() {
+  const nome = document.getElementById('f-nome').value.trim();
+  if (!nome) { toast('Informe o nome da tarefa'); return; }
+  if (freqSel === 'SEMANAL' && diasSel.length === 0) {
+    toast('Selecione pelo menos um dia da semana'); return;
+  }
+  const dataEsp = document.getElementById('f-data').value;
+  if (freqSel === 'DATA_ESPECIFICA' && !dataEsp) {
+    toast('Informe a data específica'); return;
+  }
+
+  const body = {
+    nome,
+    frequencia: freqSel,
+    horario: document.getElementById('f-hora').value || null,
+    prazo:   document.getElementById('f-prazo').value || null,
+    diasSemana: freqSel === 'SEMANAL' ? diasSel : [],
+    dataEspecifica: freqSel === 'DATA_ESPECIFICA' ? dataEsp : null,
+    concluida: false
+  };
+
+  try {
+    const editId = document.getElementById('edit-id').value;
+    if (editId) await req('PUT', `${API}/${editId}`, body);
+    else        await req('POST', API, body);
+    fecharModal();
+    toast('Tarefa salva!');
+    carregar();
+  } catch(e) { toast(e.message); }
+}
+
+// ─── Toast ─────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─── Init ──────────────────────────────────────────────
+carregar();
+</script>
+</body>
+</html>
